@@ -136,6 +136,9 @@
       "buildFromSource": [
         "react-native-screens",
         "@react-native-menu/menu"
+      ],
+      "exclude": [
+        "react-native-shiki-engine"
       ]
     }
   },
