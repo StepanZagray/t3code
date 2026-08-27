@@ -35,6 +35,16 @@ import ChatMarkdown, {
   shouldUseMarkdownFileBrowserPrimaryAction,
 } from "./ChatMarkdown";
 
+describe("ChatMarkdown", () => {
+  it("renders Codex-style display math through the production component", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown text={"\\[\nz^*=f_\\theta(z^*,x)\n\\]"} cwd={undefined} />,
+    );
+
+    expect(html).toContain('class="katex-display"');
+  });
+});
+
 describe("canUseMarkdownFileShellActions", () => {
   const environmentId = EnvironmentId.make("environment-1");
 

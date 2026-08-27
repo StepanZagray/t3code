@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { serializeRenderedMarkdownFragment } from "./markdown-clipboard";
+import {
+  chatMarkdownClipboardPayload,
+  serializeRenderedMarkdownFragment,
+} from "./markdown-clipboard";
 
 const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
@@ -8,6 +11,7 @@ const ELEMENT_NODE = 1;
 class FakeText {
   readonly nodeType = TEXT_NODE;
   readonly childNodes: ReadonlyArray<never> = [];
+  parentElement: FakeElement | null = null;
 
   constructor(readonly textContent: string) {}
 }
@@ -15,6 +19,7 @@ class FakeText {
 class FakeElement {
   readonly nodeType = ELEMENT_NODE;
   readonly childNodes: Array<FakeElement | FakeText> = [];
+  parentElement: FakeElement | null = null;
   readonly classList = {
     contains: (name: string) => this.classNames.includes(name),
   };
@@ -22,6 +27,7 @@ class FakeElement {
   constructor(
     readonly tagName: string,
     private readonly classNames: ReadonlyArray<string> = [],
+    private readonly attributes: Readonly<Record<string, string>> = {},
   ) {}
 
   get localName(): string {
@@ -33,16 +39,47 @@ class FakeElement {
   }
 
   append(...children: Array<FakeElement | FakeText>): this {
+    for (const child of children) child.parentElement = this;
     this.childNodes.push(...children);
     return this;
   }
 
-  getAttribute(): string | null {
-    return null;
+  appendChild(child: FakeElement | FakeText): FakeElement | FakeText {
+    this.append(child);
+    return child;
   }
 
-  hasAttribute(): boolean {
-    return false;
+  getAttribute(name: string): string | null {
+    return this.attributes[name] ?? null;
+  }
+
+  hasAttribute(name: string): boolean {
+    return Object.hasOwn(this.attributes, name);
+  }
+
+  closest(selector: string): FakeElement | null {
+    if (selector === "[data-markdown-copy]" && this.hasAttribute("data-markdown-copy")) return this;
+    return this.parentElement?.closest(selector) ?? null;
+  }
+
+  cloneNode(deep: boolean): FakeElement {
+    const clone = new FakeElement(this.tagName, this.classNames, this.attributes);
+    if (deep) {
+      clone.append(
+        ...this.childNodes.map((child) =>
+          child instanceof FakeElement ? child.cloneNode(true) : new FakeText(child.textContent),
+        ),
+      );
+    }
+    return clone;
+  }
+
+  querySelectorAll(): FakeElement[] {
+    return [];
+  }
+
+  get innerHTML(): string {
+    return this.textContent;
   }
 }
 
@@ -91,5 +128,42 @@ describe("serializeRenderedMarkdownFragment", () => {
     const container = new FakeElement("DIV").append(code);
 
     expect(serializeRenderedMarkdownFragment(asNode(container))).toBe("first line\nsecond line");
+  });
+
+  it("uses canonical source metadata instead of flattening duplicate math presentation text", () => {
+    const math = new FakeElement("SPAN", ["katex"], {
+      "data-markdown-copy": "$$x+1$$",
+    }).append(new FakeText("x+1x+1"));
+    const paragraph = new FakeElement("P").append(
+      new FakeText("before "),
+      math,
+      new FakeText(" after"),
+    );
+    const container = new FakeElement("DIV").append(paragraph);
+
+    expect(serializeRenderedMarkdownFragment(asNode(container))).toBe("before $$x+1$$ after");
+  });
+
+  it("uses the enclosing formula source when the selected clone contains only KaTeX internals", () => {
+    const presentation = new FakeElement("SPAN").append(new FakeText("x+1x+1"));
+    new FakeElement("SPAN", ["katex"], {
+      "data-markdown-copy": "$$x+1$$",
+    }).append(presentation);
+    const fragment = new FakeElement("SPAN").append(new FakeText("x+1x+1"));
+    const range = {
+      collapsed: false,
+      cloneContents: () => fragment,
+      commonAncestorContainer: presentation,
+      toString: () => "x+1",
+    };
+    const selection = {
+      rangeCount: 1,
+      getRangeAt: () => range,
+    };
+    vi.stubGlobal("document", {
+      createElement: () => new FakeElement("DIV"),
+    });
+
+    expect(chatMarkdownClipboardPayload(selection as unknown as Selection)?.text).toBe("$$x+1$$");
   });
 });

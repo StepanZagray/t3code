@@ -322,6 +322,15 @@ export function chatMarkdownClipboardPayload(
     const ancestor = range.commonAncestorContainer;
     const ancestorElement =
       ancestor.nodeType === Node.ELEMENT_NODE ? (ancestor as Element) : ancestor.parentElement;
+    const enclosingMath = ancestorElement?.closest("[data-markdown-copy]");
+    const mathSource = enclosingMath?.getAttribute("data-markdown-copy");
+    if (enclosingMath && mathSource) {
+      const mathContainer = document.createElement("div");
+      mathContainer.appendChild(enclosingMath.cloneNode(true));
+      texts.push(mathSource);
+      htmls.push(sanitizedHtmlFrom(mathContainer));
+      continue;
+    }
     if (ancestorElement?.closest("pre")) {
       const text = range.toString();
       if (text) {

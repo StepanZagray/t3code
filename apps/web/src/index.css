@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "katex/dist/katex.min.css";
 
 @custom-variant dark (&:is(.dark, .dark *));
 @custom-variant light (&:not(.dark, .dark *));
@@ -2103,6 +2104,23 @@ code {
 }
 
 /* Chat markdown rendering */
+
+.chat-markdown .katex-display {
+  max-width: 100%;
+  margin: 0.65rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overflow-wrap: normal;
+  overscroll-behavior-inline: contain;
+  padding-block: 0.125rem;
+  scrollbar-width: thin;
+  word-break: normal;
+}
+
+.chat-markdown .katex-display > .katex {
+  width: max-content;
+  min-width: 100%;
+}
 
 .chat-markdown > :first-child {
   margin-top: 0;
