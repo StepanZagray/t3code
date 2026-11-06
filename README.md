@@ -15,7 +15,7 @@ To pull the latest upstream T3 Code, rebuild, and install it in one go, run:
 t3code-update
 ```
 
-It rebases this fork onto `upstream/main`, builds the Linux AppImage, and installs it. Restart T3 Code afterwards, then push the rebased fork with `git push --force-with-lease origin main`.
+It rebases this fork onto `upstream/main`, builds the Linux AppImage, installs it, and force-pushes the rebased `main` to this fork. Upstream changes to this README are dropped automatically, so the fork keeps its own. Restart T3 Code afterwards.
 
 ## Some notes
 
